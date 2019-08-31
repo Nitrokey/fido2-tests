@@ -80,3 +80,79 @@ class TestResidentKey(object):
 
         for x, y in zip(regs, auths):
             verify(x, y, req.cdh)
+
+    def test_rk_maximum_size(self, device, MC_RK_Res):
+        """
+        Check the lengths of the fields according to the FIDO2 spec
+        https://github.com/solokeys/solo/issues/158#issue-426613303
+        https://www.w3.org/TR/webauthn/#dom-publickeycredentialuserentity-displayname
+        """
+        auths = []
+        user_max = generate_user_maximum()
+        req = FidoRequest(MC_RK_Res, user=user_max)
+        resMC = device.sendMC(*req.toMC())
+        resGA = device.sendGA(*req.toGA())
+        credentials = resGA.number_of_credentials
+        assert credentials == 5
+
+        auths.append(resGA)
+        for i in range(credentials - 1):
+            auths.append(device.ctap2.get_next_assertion())
+
+        user_max_GA = auths[-1]
+        verify(resMC, user_max_GA, req.cdh)
+
+        if MC_RK_Res.request.pin_protocol:
+            for y in ("name", "icon", "displayName", "id"):
+                assert user_max_GA.user[y] == user_max[y]
+
+    def test_rk_maximum_list_capacity_per_rp(self, device, MC_RK_Res):
+        """
+        Test maximum returned capacity of the RK for the given RP
+        """
+        RK_CAPACITY_PER_RP = 19
+        users = []
+
+        def get_user():
+            user = generate_user_maximum()
+            users.append(user)
+            return user
+
+        req = FidoRequest(MC_RK_Res, user=get_user())
+        res = device.sendGA(*req.toGA())
+        current_credentials_count = res.number_of_credentials
+
+        auths = []
+        regs = [MC_RK_Res]
+        RK_to_generate = RK_CAPACITY_PER_RP - current_credentials_count
+        for i in range(RK_to_generate):
+            req = FidoRequest(MC_RK_Res, user=get_user())
+            res = device.sendMC(*req.toMC())
+            regs.append(res)
+
+        req = FidoRequest(MC_RK_Res, user=generate_user_maximum())
+        res = device.sendGA(*req.toGA())
+        assert res.number_of_credentials == RK_CAPACITY_PER_RP
+
+        auths.append(res)
+        for i in range(RK_CAPACITY_PER_RP - 1):
+            auths.append(device.ctap2.get_next_assertion())
+
+        with pytest.raises(CtapError) as e:
+            device.ctap2.get_next_assertion()
+
+        auths = auths[-RK_to_generate:]
+        regs = regs[-RK_to_generate:]
+        users = users[-RK_to_generate:]
+
+        assert len(auths) == len(users)
+
+        if MC_RK_Res.request.pin_protocol:
+            for x, u in zip(auths, users):
+                for y in ("name", "icon", "displayName", "id"):
+                    assert y in x.user.keys()
+                    assert x.user[y] == u[y]
+
+        assert len(auths) == len(regs)
+        for x, y in zip(regs, auths):
+            verify(x, y, req.cdh)
