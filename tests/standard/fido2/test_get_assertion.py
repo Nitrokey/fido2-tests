@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2.ctap import CtapError
 from fido2.utils import hmac_sha256, sha256
@@ -37,6 +38,18 @@ class TestGetAssertion(object):
             device.sendGA(*FidoRequest(allow_list=allow_list).toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
+    def test_mismatched_rp(self, device, GARes):
+        rp_id = GARes.request.rp['id'][:]
+        rp_name = GARes.request.rp['name'][:]
+        rp_id += '.com'
+
+        mismatch_rp = {'id': rp_id, 'name': rp_name}
+
+        with pytest.raises(CtapError) as e:
+            device.sendGA(*FidoRequest(GARes, rp=mismatch_rp).toGA())
+        assert e.value.code == CtapError.ERR.NO_CREDENTIALS
+
+
     def test_missing_rp(self, device, GARes):
         with pytest.raises(CtapError) as e:
             device.sendGA(*FidoRequest(GARes, rp=None).toGA())
@@ -71,6 +84,7 @@ class TestGetAssertion(object):
     def test_unknown_option(self, device, GARes):
         device.sendGA(*FidoRequest(GARes, options={"unknown": True}).toGA())
 
+    @pytest.mark.skipif('trezor' in sys.argv, reason="User verification flag is intentionally set to true on Trezor even when user verification is not configured. (Otherwise some services refuse registration without giving a reason.)")
     def test_option_uv(self, device, info, GARes):
         if "uv" in info.options:
             if info.options["uv"]:
@@ -115,7 +129,7 @@ class TestGetAssertion(object):
             device.sendGA(
                 *FidoRequest(
                     GARes,
-                    allow_list=[{"type": b"public-key", "id": 42}]
+                    allow_list=[{"type": "public-key", "id": 42}]
                     + GARes.request.allow_list,
                 ).toGA()
             )
@@ -125,11 +139,25 @@ class TestGetAssertion(object):
             device.sendGA(
                 *FidoRequest(
                     GARes,
-                    allow_list=[{"type": b"public-key"}] + GARes.request.allow_list,
+                    allow_list=[{"type": "public-key"}] + GARes.request.allow_list,
                 ).toGA()
             )
 
+    def test_user_presence_option_false(self, device, MCRes, GARes):
+        from cryptography.exceptions import InvalidSignature
+        res = device.sendGA(*FidoRequest(GARes, options = {'up': False}).toGA())
 
+        try:
+            verify(MCRes, res, GARes.request.cdh)
+        except InvalidSignature:
+            if 'trezor' not in sys.argv:
+                raise
+
+        if '--nfc' not in sys.argv:
+            assert((res.auth_data.flags & 1) == 0)
+
+
+@pytest.mark.skipif('trezor' in sys.argv, reason="Reboot is not supported on Trezor.")
 class TestGetAssertionAfterBoot(object):
     def test_assertion_after_reboot(self, rebootedDevice, MCRes, GARes):
         credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
