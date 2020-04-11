@@ -207,10 +207,12 @@ class TestResidentKey(object):
         auths = []
         regs = [MC_RK_Res]
         RK_to_generate = RK_CAPACITY_PER_RP - current_credentials_count
+        print(f'Generating {RK_to_generate} RKs')
         for i in range(RK_to_generate):
             req = FidoRequest(MC_RK_Res, user=get_user())
             res = device.sendMC(*req.toMC())
             regs.append(res)
+            print(f'\tGenerating RK {i}')
 
         req = FidoRequest(MC_RK_Res, options=None, user=generate_user_maximum())
         res = device.sendGA(*req.toGA())
@@ -218,6 +220,7 @@ class TestResidentKey(object):
 
         auths.append(res)
         for i in range(RK_CAPACITY_PER_RP - 1):
+            print(f'\tGetting assertion {i}')
             auths.append(device.ctap2.get_next_assertion())
 
         with pytest.raises(CtapError) as e:
