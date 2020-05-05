@@ -168,7 +168,10 @@ class TestResidentKey(object):
         verify(resMC, user_max_GA, req.cdh)
 
         if MC_RK_Res.request.pin_protocol:
-            for y in ("name", "icon", "displayName", "id"):
+            pprint(user_max)
+            pprint(user_max_GA.user)
+            for y in ("name", "displayName", "id"):  # TODO test for "icon" - available only for verified and with non-empty name
+                assert y in user_max_GA.user
                 assert user_max_GA.user[y] == user_max[y]
 
     @pytest.mark.skipif('trezor' not in sys.argv, reason="Only Trezor has a display.")
@@ -234,7 +237,7 @@ class TestResidentKey(object):
 
         if MC_RK_Res.request.pin_protocol:
             for x, u in zip(auths, users):
-                for y in ("name", "icon", "displayName", "id"):
+                for y in ("name", "displayName", "id"):  # TODO test for "icon" - available only for verified and with non-empty name
                     assert y in x.user.keys()
                     assert x.user[y] == u[y]
 
