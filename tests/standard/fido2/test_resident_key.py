@@ -1,4 +1,6 @@
 import sys
+from pprint import pprint
+
 import pytest
 from fido2.ctap import CtapError
 
