@@ -48,7 +48,7 @@ def generate_user():
 
     # https://www.w3.org/TR/webauthn/#dictionary-pkcredentialentity
     name = " ".join(random.choice(name_list).strip() for i in range(0, 3))
-    icon = "https://www.w3.org/TR/webauthn/"
+    icon = f"https://www.w3.org/TR/webauthn/icon_{user_id_length}"
     display_name = "Displayed " + name
 
     return {"id": user_id, "name": name, "icon": icon, "displayName": display_name}
@@ -69,7 +69,7 @@ def generate_user_maximum():
     # https://www.w3.org/TR/webauthn/#dictionary-pkcredentialentity
     name = " ".join(random.choice(name_list).strip() for i in range(0, 30))
     name = f'{counter}: {name}'
-    icon = "https://www.w3.org/TR/webauthn/" + 'A'*128
+    icon = "https://www.w3.org/TR/webauthn/XYZ" + 'A'*128
     display_name = "Displayed " + name
 
     name = name[:64]
