@@ -4,10 +4,11 @@ from pprint import pprint
 import pytest
 from fido2.ctap import CtapError
 
+from tests.conftest import device, get_dev
 from tests.utils import *
 
 
-@pytest.fixture(scope="module", params=["", "123456"])
+@pytest.fixture(scope="module", params=["123456"])
 def SetPINRes(request, device, info):
 
     device.reset()
@@ -275,3 +276,56 @@ class TestResidentKey(object):
             res = device.sendGA(*req.toGA())
             assert res.user["id"] == reg.request.user["id"]
             verify(reg, res, req.cdh)
+
+    def test_rk_data_survived_update(self, resetDevice, MC_RK_Res, pytestconfig):
+        RK_COUNT = 10
+        device = resetDevice
+        # save some RKs
+        regs = [MC_RK_Res]
+        for i in range(0, RK_COUNT-1):
+            print(f'Getting reg for key {i}\r', end='')
+            req = FidoRequest(MC_RK_Res, user=generate_user())
+            res = device.sendMC(*req.toMC())
+            regs.append(res)
+
+        # verify 1
+        def verify_all():
+            auths = []
+            req = FidoRequest(MC_RK_Res, options=None, user=generate_user())
+            res = device.sendGA(*req.toGA())
+
+            assert res.number_of_credentials == RK_COUNT
+
+            auths.append(res)
+            for i in range(RK_COUNT-1):
+                print(f'Getting auth for key {i}\r', end='')
+                auths.append(device.ctap2.get_next_assertion())
+
+            with pytest.raises(CtapError) as e:
+                device.ctap2.get_next_assertion()
+
+            assert len(regs) == RK_COUNT
+            assert len(regs) == len(auths)
+
+            if MC_RK_Res.request.pin_protocol:
+                for r in auths:
+                    for a in ("name", "icon", "displayName", "id"):
+                        if a not in r.user.keys():
+                            print("FAIL: %s was not in user: " % a, r.user)
+
+            print('Testing keys...', end='')
+            for r, a in zip(regs, reversed(auths)):
+                print('.', end='')
+                verify(r, a, req.cdh)
+            print()
+
+        # verify_all()
+        input('Update firmware and press ENTER...')
+        # get new device
+        device.dev.close()
+        del device
+        device = get_dev(pytestconfig)
+        # device.sendPP('123456')
+
+        # run RK verification
+        verify_all()

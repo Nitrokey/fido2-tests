@@ -85,6 +85,17 @@ def allowListItem(MCRes):
     return
 
 
+def get_dev(pytestconfig):
+    if pytestconfig.getoption("sim"):
+        print("FORCE UDP")
+        force_udp_backend()
+
+    dev = TestDevice()
+    dev.set_sim(pytestconfig.getoption("sim"))
+
+    dev.find_device(pytestconfig.getoption("nfc"))
+    return dev
+
 @pytest.fixture(scope="session")
 def device(pytestconfig):
     if pytestconfig.getoption("sim"):
