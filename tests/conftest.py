@@ -102,12 +102,18 @@ def device(pytestconfig):
         print("FORCE UDP")
         force_udp_backend()
 
-    dev = TestDevice()
-    dev.set_sim(pytestconfig.getoption("sim"))
+    for i in range(3):
+        try:
+            dev = TestDevice()
+            dev.set_sim(pytestconfig.getoption("sim"))
+            dev.find_device(pytestconfig.getoption("nfc"))
+            return dev
+        except Exception as e:
+            print(e)
+            pass
+        time.sleep(.2)
 
-    dev.find_device(pytestconfig.getoption("nfc"))
-
-    return dev
+    raise RuntimeError('No device found')
 
 
 @pytest.fixture(scope="class")
@@ -208,8 +214,8 @@ class TestDevice:
                 pass
 
             print('Rebooting..')
-            for _ in range(0,8):
-                time.sleep(0.1)
+            for _ in range(8):
+                time.sleep(0.5)
                 try:
                     self.find_device(self.nfc_interface_only)
                     return
