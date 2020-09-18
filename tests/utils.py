@@ -36,6 +36,10 @@ def verify(reg, auth, cdh=None):
     assert auth.credential["id"] == reg.auth_data.credential_data.credential_id
 
 
+def generate_rp_random():
+    name = random.choice(name_list).strip()
+    return {"id": name + "example.org", "name": name+"ExampleRP"}
+
 def generate_rp():
     return {"id": "example.org", "name": "ExampleRP"}
 

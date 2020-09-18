@@ -12,6 +12,9 @@ def test_get_info(info):
 
 
 def test_get_info_version(info):
+    print()
+    print(info)
+    print()
     assert "FIDO_2_0" in info.versions
 
 
